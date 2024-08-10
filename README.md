@@ -5,4 +5,5 @@ Here's where I'll keep all my universal useful utilities.
 
 ## TODO
 - [x] Calendar Script.
-- [ ] Holidays.
+- [ ] Holidays List.
+- [ ] ChatGPT-scraped announced holidays list.
