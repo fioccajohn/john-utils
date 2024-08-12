@@ -161,7 +161,7 @@ SELECT
 		/
 		COUNT(*) OVER (PARTITION BY next_holiday_date)
 	) AS next_holiday_nearness_variable,
-	(calendar_date - INTERVAL (COUNT(*) OVER (PARTITION BY next_holiday_date)) DAY - (next_holiday_date - calendar_date)) AS previous_holiday_date,
+	(calendar_date - (INTERVAL (COUNT(*) OVER (PARTITION BY next_holiday_date)) DAY - (next_holiday_date - calendar_date))) AS previous_holiday_date,
 	/* TODO should be an array agg but even better should be a list that we join to. */
 	/* TODO this general holiday flag should be above and part of the calculations. */
 	COALESCE(fixed_holidays, floating_holidays) AS holiday,
@@ -174,3 +174,4 @@ GROUP BY
 ORDER BY
   calendar_date
 ;
+
