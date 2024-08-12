@@ -2,6 +2,9 @@ WITH
 preprocessing AS (
   SELECT
     calendar_date,
+    calendar_date AS today,
+    LAG(calendar_date) OVER (ORDER BY calendar_date) AS yesterday,
+    LEAD(calendar_date) OVER (ORDER BY calendar_date) AS tomorrow,
     EXTRACT(DAYOFWEEK FROM calendar_date) AS weekday,
     EXTRACT(DAY FROM calendar_date) AS day_of_month,
     EXTRACT(DAYOFYEAR FROM calendar_date) AS day_of_year,
@@ -101,14 +104,14 @@ preprocessing AS (
     /* Fixed */
     CASE FORMAT_DATE('%m-%d', calendar_date)
       WHEN "01-01" THEN "New Year's Day"
+      WHEN "02-02" THEN "Groundhog Day"
+      WHEN "02-14" THEN "Valentine's Day"
+      WHEN "03-17" THEN "St. Patrick's Day"
+      WHEN "06-19" THEN "Juneteenth"
       WHEN "07-04" THEN "Independence Day"
+      WHEN "10-31" THEN "Halloween"
       WHEN "11-11" THEN "Veterans Day"
       WHEN "12-25" THEN "Christmas Day"
-      WHEN "02-14" THEN "Valentine's Day"
-      WHEN "10-31" THEN "Halloween"
-      WHEN "03-17" THEN "St. Patrick's Day"
-      WHEN "02-02" THEN "Groundhog Day"
-      WHEN "06-19" THEN "Juneteenth"
       WHEN "12-31" THEN "New Year's Eve"
       ELSE NULL
     END AS fixed_holidays,
@@ -127,18 +130,47 @@ preprocessing AS (
     END AS floating_holidays,
   FROM
     feature_engineering3
+), feature_engineering5 AS (
+  /* TODO testing out the next holiday logic here. */
+  SELECT
+    *,
+	/* TODO Well, if today's a holiday, today is the last holiday date. Start from there. */
+	IF(fixed_holidays IS NOT NULL, calendar_date, NULL) AS holiday_date,
+	/* TODO don't just think to put in an OR statement here. I need to refactor to get the full holidays array. */
+	FIRST_VALUE(IF(fixed_holidays IS NOT NULL, fixed_holidays, NULL) IGNORE NULLS) OVER window__from_here_to_eternity AS next_holiday_name,
+	FIRST_VALUE(IF(fixed_holidays IS NOT NULL, calendar_date, NULL) IGNORE NULLS) OVER window__from_here_to_eternity AS next_holiday_date,
+	/* TODO how to navigate to previous holiday value? */
+	(LAG(fixed_holidays) OVER (ORDER BY calendar_date) IS NOT NULL) AS yesterday_was_a_holiday,
+  FROM
+    feature_engineering4
+  WINDOW
+    window__from_here_to_eternity AS (ORDER BY calendar_date ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
 )
 SELECT
+	/* TODO Yes many to-dos, but I want to note that the big idea here should be calculating raw dates and counts. The calculated measures should come as late as possible. */
 	*,
+	(next_holiday_date - calendar_date) AS days_until_next_holiday,
+	/* TODO Refactor all below. */
+	COUNT(*) OVER (PARTITION BY next_holiday_date) AS days_between_previous_and_next_holiday,
+	/* TODO Confirm logic. Flawed for first dates in range. */
+	(INTERVAL (COUNT(*) OVER (PARTITION BY next_holiday_date)) DAY - (next_holiday_date - calendar_date)) AS days_since_previous_holiday,
+	/* TODO rename please. */
+	/* TODO should it be 0 on the day of a holiday since we're looking for the next holiday? */
+	(
+		EXTRACT(DAY FROM (INTERVAL (COUNT(*) OVER (PARTITION BY next_holiday_date)) DAY) - (next_holiday_date - calendar_date))
+		/
+		COUNT(*) OVER (PARTITION BY next_holiday_date)
+	) AS next_holiday_nearness_variable,
+	(calendar_date - INTERVAL (COUNT(*) OVER (PARTITION BY next_holiday_date)) DAY - (next_holiday_date - calendar_date)) AS previous_holiday_date,
 	/* TODO should be an array agg but even better should be a list that we join to. */
+	/* TODO this general holiday flag should be above and part of the calculations. */
 	COALESCE(fixed_holidays, floating_holidays) AS holiday,
 FROM
-	feature_engineering4
+	feature_engineering5
 	/*
 GROUP BY
   ALL
 */
+ORDER BY
+  calendar_date
 ;
-
-
-
