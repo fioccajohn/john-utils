@@ -7,4 +7,3 @@ Here's where I'll keep all my universal useful utilities.
 - [x] Calendar Script.
 - [ ] Logic around the holidays like `is_long_weekend` and `days_until_next_holiday` and etc.
 - [ ] Holidays List.
-- [ ] ChatGPT-scraped announced holidays list.
